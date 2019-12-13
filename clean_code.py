@@ -248,7 +248,7 @@ def validate(val_loader, model,criterion,args):
     end_fun = time.time()
     total_fun = end_fun - start_fun
 
-    # TODO: this should also be done with the ProgressMeter
+    # TODO: this should also be done with the ProgressMeterr
     print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
             .format(top1=top1, top5=top5))
        
