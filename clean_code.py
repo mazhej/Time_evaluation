@@ -108,18 +108,7 @@ def main_worker(gpu, ngpus_per_node, args):
     model.cuda()
             
     
-    if args.gpu is not None:
-        torch.cuda.set_device(args.gpu)
-        model = model.cuda(args.gpu)
-    # else:
-    #     # DataParallel will divide and allocate batch_size to all available GPUs
-    #     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-    #         model.features = torch.nn.DataParallel(model.features)
-    #         model.cuda()
-    else:
-        model = torch.nn.DataParallel(model).cuda()
 
-    # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
@@ -150,7 +139,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     cudnn.benchmark = True
 
-    # Data loading code
+    # Data loading code#
     #traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -187,51 +176,11 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
-    # for epoch in range(args.start_epoch, args.epochs):
-    #     if args.distributed:
-    #         train_sampler.set_epoch(epoch)
-    #     adjust_learning_rate(optimizer, epoch, args)
-
-    #     # train for one epoch
-    #     train(train_loader, model, criterion, optimizer, epoch, args)
-
-    #     # evaluate on validation set
-    #     acc1 = validate(val_loader, model, criterion, args)
-
-    #     # remember best acc@1 and save checkpoint
-    #     is_best = acc1 > best_acc1
-    #     best_acc1 = max(acc1, best_acc1)
-
-    #     if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-    #             and args.rank % ngpus_per_node == 0):
-    #         save_checkpoint({
-    #             'epoch': epoch + 1,
-    #             'arch': args.arch,
-    #             'state_dict': model.state_dict(),
-    #             'best_acc1': best_acc1,
-    #             'optimizer' : optimizer.state_dict(),
-    #         }, is_best)
-
-    
-
-    
-
-
-
-# def train(train_loader, model, criterion, optimizer, epoch, args):
-#     batch_time = AverageMeter('Time', ':6.3f')
-#     data_time = AverageMeter('Data', ':6.3f')
-#     losses = AverageMeter('Loss', ':.4e')
-#     top1 = AverageMeter('Acc@1', ':6.2f')
-#     top5 = AverageMeter('Acc@5', ':6.2f')
-#     progress = ProgressMeter(
-#         len(train_loader),
-#         [batch_time, data_time, losses, top1, top5],
-#         prefix="Epoch: [{}]".format(epoch))
-
+  
 def validate(val_loader, model,criterion,args):
-    start_time =  time.time()
-    
+    start_fun = time.time()
+    start_cuda = torch.cuda.Event(enable_timing=True)
+    end_cuda = torch.cuda.Event(enable_timing=True)
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
     top1 = AverageMeter('Acc@1', ':6.2f')
@@ -241,38 +190,77 @@ def validate(val_loader, model,criterion,args):
     [batch_time, losses, top1, top5],
     prefix='Test: ')
     # switch to evaluate mode
+    start_eval = time.time()
     model.eval()
-
+    end_eval = time.time() - start_eval
+    total_time = 0
+    total_gpu = 0
+    total_loss = 0
+    total_measure = 0
+    total_elapsed = 0
     with torch.no_grad():
         end = time.time()
         for i, (images, target) in enumerate(val_loader):
-            if args.gpu is not None:
-                images = images.cuda(args.gpu, non_blocking=True)
-            target = target.cuda(args.gpu, non_blocking=True)
+            # if args.gpu is not None:
+            #sending images to GPU
+            start_gpu = time.time()
+            images = images.cuda()
+            target = target.cuda()
+            end_gpu = time.time() - start_gpu
+            total_gpu = total_gpu + end_gpu
 
             # compute output
+            start_cuda.record()
             output = model(images)
+            end_cuda.record()
+            # Waits for everything to finish running
+            torch.cuda.synchronize()
+            # print(f'--- %s seconds --- % {end_time}')
+            # print(f"total time is {total_time}")
+            total_time = total_time + (start_cuda.elapsed_time(end_cuda))/1000
+            #loss
+            start_loss = time.time()
             loss = criterion(output, target)
+            end_loss = time.time() - start_loss
+            total_loss += end_loss
+
 
             # measure accuracy and record loss
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
-            losses.update(loss.item(), images.size(0))
-            top1.update(acc1[0], images.size(0))
-            top5.update(acc5[0], images.size(0))
+            start_measure = time.time()
+            # acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            # losses.update(loss.item(), images.size(0))
+            # top1.update(acc1[0], images.size(0))
+            # top5.update(acc5[0], images.size(0))
+            end_measure = time.time() - start_measure
+            total_measure += end_measure
+
 
             # measure elapsed time
+            start_elapsed = time.time()
             batch_time.update(time.time() - end)
             end = time.time()
+            end_elapsed = time.time() - start_elapsed
+            total_elapsed += end_elapsed
             
 
             if i % args.print_freq == 0:
                 progress.display(i)
+    end_fun = time.time()
+    total_fun = end_fun - start_fun
 
-        # TODO: this should also be done with the ProgressMeter
-        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-              .format(top1=top1, top5=top5))
+    # TODO: this should also be done with the ProgressMeter
+    print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+            .format(top1=top1, top5=top5))
        
-    print("--- %s seconds ---" % (time.time() - start_time))
+    print(f"time for model.eval() {end_eval}")
+    print(f"time for image/target.cuda() {total_gpu}")
+    print(f"time for model(images) {total_time}")
+    print(f"time for loss {total_loss}")
+    print(f"time for measure accuracy and record loss {total_measure}")
+    print(f"time for measure elapsed time {total_elapsed}")
+    print(f"total time for evaluation function {total_fun}")
+    print(end_eval+total_gpu+total_time+total_loss+total_measure+total_elapsed)
+
     return top1.avg
     
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
