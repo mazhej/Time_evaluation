@@ -211,10 +211,6 @@ def validate(val_loader, model,criterion,args):
 
             # measure accuracy and record loss
             start_measure = time.time()
-            # acc1, acc5 = accuracy(output, target, topk=(1, 5))
-            # losses.update(loss.item(), images.size(0))
-            # top1.update(acc1[0], images.size(0))
-            # top5.update(acc5[0], images.size(0))
             end_measure = time.time() - start_measure
             total_measure += end_measure
 
