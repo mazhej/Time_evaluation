@@ -7,3 +7,7 @@ It seems [MobileNet](https://arxiv.org/abs/1704.04861) is faster than [Resnet](h
 
 ## Take Away
 MobileNet uses Depthwise Separable Convolutions and Linear Bottlenecks in its architecture, which make it not to be hardware-friendly.
+
+## output
+At the end it should give a result like this:
+![](example.png)
