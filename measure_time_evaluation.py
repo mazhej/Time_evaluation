@@ -23,7 +23,7 @@ model_names = sorted(name for name in models.__dict__
     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
+parser.add_argument('data', metavar='DIR',default="/1TBstorage/ImageNet/ILSVRC/Data",
                     help='path to dataset')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                     choices=model_names,
