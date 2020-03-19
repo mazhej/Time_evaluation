@@ -10,4 +10,4 @@ MobileNet uses Depthwise Separable Convolutions and Linear Bottlenecks in its ar
 
 ## output
 At the end it should give a result like this:
-![](example.png)
+
