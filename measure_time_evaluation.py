@@ -23,7 +23,7 @@ model_names = sorted(name for name in models.__dict__
     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',default="/1TBstorage/ImageNet/ILSVRC/Data",
+parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                     choices=model_names,
@@ -72,10 +72,15 @@ def main():
         random.seed(args.seed)
         torch.manual_seed(args.seed)
         cudnn.deterministic = True
-        warnings.warn('Seed can slow down your training phase.')
+        warnings.warn('You have chosen to seed training. '
+                      'This will turn on the CUDNN deterministic setting, '
+                      'which can slow down your training considerably! '
+                      'You may see unexpected behavior when restarting '
+                      'from checkpoints.')
     
     if args.gpu is not None:
-        warnings.warn('GPU disables data parallelism.')
+        warnings.warn('You have chosen a specific GPU. This will completely '
+                      'disable data parallelism.')
                     
     ngpus_per_node = torch.cuda.device_count()
     
@@ -134,13 +139,13 @@ def main_worker(gpu, ngpus_per_node, args):
 
     cudnn.benchmark = True
 
-    # Data loading code#
+    # Data loading code
     #traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    #validation dataset loader
+ 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
             transforms.Resize(256),
@@ -206,6 +211,10 @@ def validate(val_loader, model,criterion,args):
 
             # measure accuracy and record loss
             start_measure = time.time()
+            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            losses.update(loss.item(), images.size(0))
+            top1.update(acc1[0], images.size(0))
+            top5.update(acc5[0], images.size(0))
             end_measure = time.time() - start_measure
             total_measure += end_measure
 
@@ -223,7 +232,7 @@ def validate(val_loader, model,criterion,args):
     end_fun = time.time()
     total_fun = end_fun - start_fun
 
-    # TODO: this should also be done with the ProgressMeterr
+    # TODO: this should also be done with the ProgressMeter
     print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
             .format(top1=top1, top5=top5))
        
@@ -234,9 +243,9 @@ def validate(val_loader, model,criterion,args):
     print(f"time for measure accuracy and record loss {total_measure}")
     print(f"time for measure elapsed time {total_elapsed}")
     print(f"total time for evaluation function {total_fun}")
-    print(end_eval+total_gpu+total_time+total_loss+total_measure+total_elapsed)
+    print(float(total_gpu)+float(total_time))
 
-    return top1.avg
+    return top1.avg 
     
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
